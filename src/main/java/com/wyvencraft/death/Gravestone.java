@@ -3,7 +3,6 @@ package com.wyvencraft.death;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.MemorySection;
-import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -18,14 +17,6 @@ public class Gravestone {
     private final Inventory inventory;
     private boolean unlocked;
     private final long created;
-
-    public Gravestone(UUID owner, Location location, Inventory inventory, long created) {
-        this.owner = owner;
-        this.location = location;
-        this.inventory = inventory;
-        this.unlocked = false;
-        this.created = created;
-    }
 
     public Gravestone(UUID owner, Location location, Inventory inventory, long created, boolean unlocked) {
         this.owner = owner;
@@ -78,8 +69,6 @@ public class Gravestone {
         Inventory inventory = Bukkit.createInventory(null, size, "Gravestone");
 
         for (Map.Entry<String, Object> entry : serializedInventory.entrySet()) {
-            System.out.println("Key " + entry.getKey());
-            System.out.println("Value " + ((MemorySection) entry.getValue()).getValues(false));
             int slot = Integer.parseInt(entry.getKey());
             ItemStack item = ItemStack.deserialize(((MemorySection) entry.getValue()).getValues(false));
             inventory.setItem(slot, item);
