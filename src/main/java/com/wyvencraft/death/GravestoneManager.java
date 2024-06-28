@@ -1,6 +1,5 @@
 package com.wyvencraft.death;
 
-import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -11,7 +10,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.util.Vector;
 
 import java.io.File;
@@ -20,7 +19,7 @@ import java.util.*;
 
 public class GravestoneManager {
     private final WyvenDeath plugin;
-    private final Map<UUID, Gravestone> gravestones;
+    private final Map<Location, Gravestone> gravestones;
 
     private final File gravestonesFile;
     private final FileConfiguration gravestonesConfig;
@@ -37,39 +36,19 @@ public class GravestoneManager {
         createGravestone(owner, location, inventory, created, false);
     }
 
-
     public void createGravestone(UUID owner, Location location, Inventory inventory, long created, boolean unlocked) {
         Gravestone gravestone = new Gravestone(owner, location, inventory, created, unlocked);
-        gravestones.put(gravestone.getOwner(), gravestone);
+        gravestone.startTask(plugin);
+        gravestones.put(location, gravestone);
 
-        // Create the gravestone block
         // TODO Change the block type to a custom gravestone block
         Block block = gravestone.getLocation().getBlock();
         block.setType(Material.STONE);
-
-        // Unlock the gravestone after 5 minutes
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                gravestone.unlock();
-                Player owner = Bukkit.getPlayer(gravestone.getOwner());
-                if (owner != null) owner.sendMessage("Your gravestone has been unlocked.");
-            }
-        }.runTaskLater(plugin, 200L);
-
-        // Explode the gravestone after 10 minutes
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                explodeGravestone(gravestone);
-                Player owner = Bukkit.getPlayer(gravestone.getOwner());
-                if (owner != null) owner.sendMessage("Your gravestone has been exploded.");
-            }
-        }.runTaskLater(plugin, 600L);
     }
 
     public void unloadGravestones() {
         for (Gravestone gravestone : gravestones.values()) {
+            gravestone.cancelTasks();
             Block block = gravestone.getLocation().getBlock();
             if (block.getType() == Material.STONE) {
                 block.setType(Material.AIR);
@@ -80,21 +59,7 @@ public class GravestoneManager {
     }
 
     public Gravestone getGravestoneByLocation(Location location) {
-        return gravestones.values().stream()
-                .filter(g -> g.getLocation().equals(location))
-                .findFirst()
-                .orElse(null);
-    }
-
-    public void restrictMovement(Player player, Location deathLocation) {
-        Location playerLocation = player.getLocation();
-        double distance = playerLocation.distance(deathLocation);
-        double maxRadius = 10.0;
-
-        if (distance > maxRadius) {
-            Vector direction = deathLocation.toVector().subtract(playerLocation.toVector()).normalize();
-            player.setVelocity(direction.multiply(0.5));
-        }
+        return gravestones.getOrDefault(location, null);
     }
 
     public void removeGravestoneFromConfig(UUID uuid) {
@@ -114,20 +79,39 @@ public class GravestoneManager {
             int x = rand.nextInt((maxRadius - minRadius) + 1) + minRadius;
             int z = rand.nextInt((maxRadius - minRadius) + 1) + minRadius;
             respawnLocation = deathLocation.clone().add(x, 0, z);
-            respawnLocation.setDirection(deathLocation.toVector().subtract(respawnLocation.toVector()));
 
             respawnLocation = respawnLocation.getWorld().getHighestBlockAt(respawnLocation).getLocation();
+
+            Vector direction = deathLocation.toVector().subtract(respawnLocation.toVector());
+            respawnLocation.setDirection(direction);
+
             player.teleport(respawnLocation);
         }
 
-        player.sendMessage("You are " + player.getLocation().distance(deathLocation) + " blocks away from your gravestone.");
+//        Display the distance between the player and the gravestone with 2 decimal places
+        double distance = player.getLocation().distance(deathLocation);
+        player.sendMessage("§7You respawned §a" + String.format("%.2f", distance) + " §7blocks away from your death location.");
 
-        player.removeMetadata("respawning", plugin);
-        player.setGameMode(GameMode.SURVIVAL);
-        player.setAllowFlight(false);
-        player.setFlying(false);
-        player.setInvulnerable(false);
-        player.setInvisible(false);
+        spectator(player, false);
+    }
+
+    public void spectator(Player player, boolean enable) {
+        if (enable) {
+            player.setMetadata("respawning", new FixedMetadataValue(plugin, true));
+
+            player.setGameMode(GameMode.ADVENTURE);
+            player.setAllowFlight(true);
+            player.setFlying(true);
+            player.setInvulnerable(true);
+            player.setInvisible(true);
+        } else {
+            player.removeMetadata("respawning", plugin);
+            player.setGameMode(GameMode.SURVIVAL);
+            player.setAllowFlight(false);
+            player.setFlying(false);
+            player.setInvulnerable(false);
+            player.setInvisible(false);
+        }
     }
 
     public void explodeGravestone(Gravestone gravestone) {
@@ -151,9 +135,9 @@ public class GravestoneManager {
     }
 
     public void saveGravestones() {
-        for (UUID uuid : gravestones.keySet()) {
-            Gravestone gravestone = gravestones.get(uuid);
-            ConfigurationSection section = gravestonesConfig.createSection(uuid.toString());
+        for (Map.Entry<Location, Gravestone> entry : gravestones.entrySet()) {
+            Gravestone gravestone = entry.getValue();
+            ConfigurationSection section = gravestonesConfig.createSection(gravestone.getOwner().toString());
             section.set("location", gravestone.getLocation().serialize());
             section.set("inventory", gravestone.serializeInventory());
             section.set("unlocked", gravestone.isUnlocked());
@@ -180,11 +164,22 @@ public class GravestoneManager {
     }
 
     public void removeGravestone(Gravestone gravestone) {
-        gravestones.remove(gravestone.getOwner());
+        gravestone.getLocation().getBlock().setType(Material.AIR);
+        gravestone.cancelTasks();
+        gravestones.remove(gravestone.getLocation());
         removeGravestoneFromConfig(gravestone.getOwner());
     }
 
-    public Gravestone getGravestoneByOwner(UUID uniqueId) {
-        return gravestones.get(uniqueId);
+    public Gravestone[] getGravestoneByOwner(UUID uniqueId) {
+        return gravestones.values().stream()
+                .filter(gravestone -> gravestone.getOwner().equals(uniqueId))
+                .toArray(Gravestone[]::new);
+    }
+
+    public Gravestone getGravestoneByInventory(Inventory inventory) {
+        return gravestones.values().stream()
+                .filter(gravestone -> gravestone.getInventory().equals(inventory))
+                .findFirst()
+                .orElse(null);
     }
 }

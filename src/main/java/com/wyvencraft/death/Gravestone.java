@@ -1,22 +1,34 @@
 package com.wyvencraft.death;
 
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.configuration.MemorySection;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public class Gravestone {
+    // EXPLODING MUST ALWAYS BE GREATER THAN UNLOCKING
+    private static final int EXPLODING_COUNTDOWN_SEC = 20;
+    private static final int UNLOCKING_COUNTDOWN_SEC = 10;
+
     private final UUID owner;
     private final Location location;
     private final Inventory inventory;
     private boolean unlocked;
     private final long created;
+
+    private boolean looting;
+
+    BukkitTask task;
 
     public Gravestone(UUID owner, Location location, Inventory inventory, long created, boolean unlocked) {
         this.owner = owner;
@@ -24,6 +36,47 @@ public class Gravestone {
         this.inventory = inventory;
         this.unlocked = unlocked;
         this.created = created;
+        this.looting = false;
+    }
+
+    public void startTask(WyvenDeath plugin) {
+        Player player = Bukkit.getPlayer(owner);
+
+        task = new BukkitRunnable() {
+            int count = 0;
+
+            @Override
+            public void run() {
+                if (looting) return;
+
+                count++;
+
+                if (!isUnlocked() && count >= UNLOCKING_COUNTDOWN_SEC) {
+                    unlock();
+                    player.sendMessage("§cGravestone unlocked, for everyone to loot!");
+                }
+
+                if (count >= EXPLODING_COUNTDOWN_SEC) {
+                    explodeGravestone(plugin);
+                    player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy("§cGravestone exploded!"));
+                }
+
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy("§cGravestone will explode in " + (EXPLODING_COUNTDOWN_SEC - count) + " seconds."));
+            }
+        }.runTaskTimer(plugin, 0L, 20L);
+    }
+
+    public void cancelTasks() {
+        if (task != null) {
+            task.cancel();
+            task = null;
+        }
+    }
+
+    private void explodeGravestone(WyvenDeath plugin) {
+        GravestoneManager gravestoneManager = plugin.getGravestoneManager();
+        gravestoneManager.explodeGravestone(this);
+        cancelTasks();
     }
 
     public UUID getOwner() {
@@ -74,5 +127,13 @@ public class Gravestone {
             inventory.setItem(slot, item);
         }
         return inventory;
+    }
+
+    public void setLooting(boolean b) {
+        this.looting = b;
+    }
+
+    public boolean isLooting() {
+        return looting;
     }
 }

@@ -10,6 +10,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
 public class GravestoneListener implements Listener {
 
@@ -23,6 +24,11 @@ public class GravestoneListener implements Listener {
 
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getPlayer().hasMetadata("respawning")) {
+            event.setCancelled(true);
+            return;
+        }
+
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
 
         Block block = event.getClickedBlock();
@@ -31,29 +37,28 @@ public class GravestoneListener implements Listener {
 
         Player player = event.getPlayer();
         Gravestone gravestone = gravestoneManager.getGravestoneByLocation(block.getLocation());
-        System.out.println("Player interacted with gravestone");
 
         if (gravestone != null) {
             if (gravestone.isUnlocked() || gravestone.isOwner(player)) {
                 player.openInventory(gravestone.getInventory());
+                gravestone.setLooting(true);
             } else {
                 player.sendMessage("This gravestone is locked. Please wait until it unlocks.");
             }
         }
-
     }
 
     @EventHandler
     public void onGravestoneClose(InventoryCloseEvent event) {
-        Inventory inventory = event.getInventory();
-        Location location = event.getPlayer().getLocation();
+        if (!event.getView().getTitle().contains("Gravestone")) return;
 
-        Gravestone gravestone = gravestoneManager.getGravestoneByLocation(location);
+        Inventory inventory = event.getInventory();
+        Gravestone gravestone = gravestoneManager.getGravestoneByInventory(inventory);
 
         if (gravestone != null && gravestone.getInventory().equals(inventory)) {
             boolean isEmpty = true;
-            for (int i = 0; i < inventory.getSize(); i++) {
-                if (inventory.getItem(i) != null) {
+            for (ItemStack item : inventory) {
+                if (item != null && item.getType() != Material.AIR) {
                     isEmpty = false;
                     break;
                 }
@@ -61,9 +66,9 @@ public class GravestoneListener implements Listener {
 
             if (isEmpty) {
                 gravestoneManager.removeGravestone(gravestone);
-                location.getBlock().setType(Material.AIR);
-
                 event.getPlayer().sendMessage("§aYou fully looted the gravestone!");
+            } else {
+                gravestone.setLooting(false);
             }
         }
     }

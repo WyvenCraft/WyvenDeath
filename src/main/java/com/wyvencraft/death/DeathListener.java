@@ -1,24 +1,16 @@
 package com.wyvencraft.death;
 
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.Location;
-import org.bukkit.damage.DamageSource;
-import org.bukkit.damage.DamageType;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.scheduler.BukkitRunnable;
-
-import java.util.Arrays;
-import java.util.Objects;
+import org.bukkit.util.Vector;
 
 public class DeathListener implements Listener {
     private final WyvenDeath plugin;
@@ -29,27 +21,18 @@ public class DeathListener implements Listener {
         this.gravestoneManager = gravestoneManager;
     }
 
-//    @EventHandler
-//    public void onPlayerDeathForce(PlayerDeathEvent event) {
-//        EntityDamageEvent entityDamageEvent = new EntityDamageEvent(event.getEntity(), EntityDamageEvent.DamageCause.CUSTOM, DamageSource.builder(DamageType.GENERIC).build(), event.getEntity().getHealth() + 1);
-//        Bukkit.getPluginManager().callEvent(entityDamageEvent);
-//    }
-
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player)) return;
-
-        Player player = (Player) event.getEntity();
+        if (!(event.getEntity() instanceof Player player)) return;
 
         if (player.getHealth() - event.getFinalDamage() > 0) return;
-        System.out.println(player.hasMetadata("respawning"));
 
         event.setCancelled(true);
 
-        Location deathLocation = player.getLocation();
+        Location deathLocation = player.getLocation().getBlock().getLocation();
 
         if (!player.getInventory().isEmpty()) {
-            Inventory gravestoneInventory = plugin.getServer().createInventory(null, 27, "Gravestone");
+            Inventory gravestoneInventory = Bukkit.createInventory(null, 27, "Gravestone");
 
             // Store player's items in the virtual inventory
             player.getInventory().forEach(item -> {
@@ -66,28 +49,21 @@ public class DeathListener implements Listener {
         }
 
         // Set player metadata
-        player.setHealth(20);
+        player.setHealth(player.getMaxHealth());
         player.setFoodLevel(20);
         player.setSaturation(20);
-        player.setMetadata("respawning", new FixedMetadataValue(plugin, true));
 
-        // Set player to adventure mode and allow flight
-        player.setGameMode(GameMode.ADVENTURE);
-        player.setAllowFlight(true);
-        player.setFlying(true);
-        player.setInvulnerable(true);
-        player.setInvisible(true);
+        gravestoneManager.spectator(player, true);
 
 //        Send a message to the player with coordinates of the gravestone
-        player.sendMessage("Your gravestone has been placed at " + deathLocation.getBlockX() + ", " + deathLocation.getBlockY() + ", " + deathLocation.getBlockZ());
-//        how many blocks away from the gravestone the player is
+        player.sendMessage("You died at " + deathLocation.getBlockX() + ", " + deathLocation.getBlockY() + ", " + deathLocation.getBlockZ());
 
         // Restrict player's movement and handle respawn
         new BukkitRunnable() {
             @Override
             public void run() {
                 if (player.hasMetadata("respawning")) {
-                    gravestoneManager.restrictMovement(player, deathLocation);
+                    restrictMovement(player, deathLocation);
                 } else {
                     this.cancel();
                 }
@@ -107,11 +83,20 @@ public class DeathListener implements Listener {
     public void onPlayerLeave(PlayerQuitEvent event) {
         Player player = event.getPlayer();
 
-        System.out.println(player.hasMetadata("respawning"));
-
         if (player.hasMetadata("respawning")) {
-            Gravestone gravestone = gravestoneManager.getGravestoneByOwner(player.getUniqueId());
-            gravestoneManager.respawnPlayer(player, gravestone.getLocation());
+            Gravestone[] gravestones = gravestoneManager.getGravestoneByOwner(player.getUniqueId());
+            gravestoneManager.respawnPlayer(player, gravestones[0].getLocation());
+        }
+    }
+
+    private void restrictMovement(Player player, Location deathLocation) {
+        Location playerLocation = player.getLocation();
+        double distance = playerLocation.distance(deathLocation);
+        double maxRadius = 10.0;
+
+        if (distance > maxRadius) {
+            Vector direction = deathLocation.toVector().subtract(playerLocation.toVector()).normalize();
+            player.setVelocity(direction.multiply(0.5));
         }
     }
 }

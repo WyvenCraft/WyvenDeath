@@ -10,6 +10,9 @@ public class WyvenDeath extends JavaPlugin {
 
     @Override
     public void onEnable() {
+//         // Register command
+        this.getCommand("kill").setExecutor(new KillCommand());
+
         registerListeners();
 
         // Load gravestones from file

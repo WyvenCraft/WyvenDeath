@@ -5,3 +5,9 @@ version: 1.0
 author: WyvenCraft
 api-version: 1.21
 load: POSTWORLD
+commands:
+  kill:
+    description: Kill a player.
+    usage: /kill <player>
+    aliases:
+      - suicide
