@@ -7,10 +7,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
+
+import java.util.Arrays;
 
 public class DeathListener implements Listener {
     private final WyvenDeath plugin;
@@ -23,37 +26,34 @@ public class DeathListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.isCancelled()) return;
 
+        if (!(event.getEntity() instanceof Player player)) return;
         if (player.getHealth() - event.getFinalDamage() > 0) return;
 
         event.setCancelled(true);
 
+        PlayerDeathEvent deathEvent = new PlayerDeathEvent(
+                player,
+                event.getDamageSource(),
+                Arrays.asList(player.getInventory().getContents()),
+                (int) player.getExp(),
+                "You died!");
+
+        Bukkit.getPluginManager().callEvent(deathEvent);
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
         Location deathLocation = player.getLocation().getBlock().getLocation();
 
-        if (!player.getInventory().isEmpty()) {
-            Inventory gravestoneInventory = Bukkit.createInventory(null, 27, "Gravestone");
-
-            // Store player's items in the virtual inventory
-            player.getInventory().forEach(item -> {
-                if (item != null) {
-                    gravestoneInventory.addItem(item);
-                }
-            });
-
-            // Clear player's inventory
-            player.getInventory().clear();
-
-            // Create and manage the gravestone
-            gravestoneManager.createGravestone(player.getUniqueId(), deathLocation, gravestoneInventory, System.currentTimeMillis());
+        if (!event.getDrops().isEmpty()) {
+            createGravestone(event, player, deathLocation);
         }
 
         // Set player metadata
-        player.setHealth(player.getMaxHealth());
-        player.setFoodLevel(20);
-        player.setSaturation(20);
-
-        gravestoneManager.spectator(player, true);
+        enableGhost(player);
 
 //        Send a message to the player with coordinates of the gravestone
         player.sendMessage("You died at " + deathLocation.getBlockX() + ", " + deathLocation.getBlockY() + ", " + deathLocation.getBlockZ());
@@ -77,6 +77,28 @@ public class DeathListener implements Listener {
                 gravestoneManager.respawnPlayer(player, deathLocation);
             }
         }.runTaskLater(plugin, 100L);
+    }
+
+    private void enableGhost(Player player) {
+        player.setHealth(player.getMaxHealth());
+        player.setFoodLevel(20);
+        player.setSaturation(20);
+
+        gravestoneManager.spectator(player, true);
+    }
+
+    private void createGravestone(PlayerDeathEvent event, Player player, Location deathLocation) {
+        Inventory gravestoneInventory = Bukkit.createInventory(null, 27, "Gravestone");
+
+        // Store player's items in the virtual inventory
+        event.getDrops().forEach(item -> {
+            if (item != null) {
+                gravestoneInventory.addItem(item);
+            }
+        });
+
+        // Create and manage the gravestone
+        gravestoneManager.createGravestone(player.getUniqueId(), deathLocation, gravestoneInventory);
     }
 
     @EventHandler

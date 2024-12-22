@@ -5,13 +5,15 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
+import java.util.Objects;
+
 public class WyvenDeath extends JavaPlugin {
     private final GravestoneManager gravestoneManager = new GravestoneManager(this);
 
     @Override
     public void onEnable() {
 //         // Register command
-        this.getCommand("kill").setExecutor(new KillCommand());
+        Objects.requireNonNull(this.getCommand("kill")).setExecutor(new KillCommand());
 
         registerListeners();
 
@@ -27,7 +29,7 @@ public class WyvenDeath extends JavaPlugin {
     private void registerListeners() {
         PluginManager pm = Bukkit.getPluginManager();
         pm.registerEvents(new DeathListener(this, gravestoneManager), this);
-        pm.registerEvents(new GravestoneListener(this, gravestoneManager), this);
+        pm.registerEvents(new GravestoneListener(gravestoneManager), this);
     }
 
     @Override
