@@ -3,6 +3,7 @@ package com.wyvencraft.death;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -24,6 +25,9 @@ public class GravestoneManager {
     private final File gravestonesFile;
     private final FileConfiguration gravestonesConfig;
 
+    private static final int MIN_RADIUS = 20;
+    private static final int MAX_RADIUS = 25;
+
     public GravestoneManager(WyvenDeath plugin) {
         this.plugin = plugin;
         this.gravestones = new HashMap<>();
@@ -32,7 +36,8 @@ public class GravestoneManager {
         this.gravestonesConfig = YamlConfiguration.loadConfiguration(gravestonesFile);
     }
 
-    public void createGravestone(UUID owner, Location location, Inventory inventory, long created) {
+    public void createGravestone(UUID owner, Location location, Inventory inventory) {
+        long created = System.currentTimeMillis();
         createGravestone(owner, location, inventory, created, false);
     }
 
@@ -68,19 +73,20 @@ public class GravestoneManager {
     }
 
     public void respawnPlayer(Player player, Location deathLocation) {
-        int minRadius = 20;
-        int maxRadius = 25;
-        Location respawnLocation = player.getBedSpawnLocation();
+        Location respawnLocation = player.getRespawnLocation();
 
-        if (respawnLocation != null && respawnLocation.distance(deathLocation) <= maxRadius) {
+        if (respawnLocation != null && respawnLocation.distance(deathLocation) <= MAX_RADIUS) {
             player.teleport(respawnLocation);
         } else {
-            Random rand = new Random();
-            int x = rand.nextInt((maxRadius - minRadius) + 1) + minRadius;
-            int z = rand.nextInt((maxRadius - minRadius) + 1) + minRadius;
+            final Random rand = new Random();
+            int x = rand.nextInt((MAX_RADIUS - MIN_RADIUS) + 1) + MIN_RADIUS;
+            int z = rand.nextInt((MAX_RADIUS - MIN_RADIUS) + 1) + MIN_RADIUS;
             respawnLocation = deathLocation.clone().add(x, 0, z);
 
-            respawnLocation = respawnLocation.getWorld().getHighestBlockAt(respawnLocation).getLocation();
+            final World world = respawnLocation.getWorld();
+            if (world == null) return;
+
+            respawnLocation = world.getHighestBlockAt(respawnLocation).getLocation();
 
             Vector direction = deathLocation.toVector().subtract(respawnLocation.toVector());
             respawnLocation.setDirection(direction);
@@ -118,7 +124,10 @@ public class GravestoneManager {
         Inventory inventory = gravestone.getInventory();
         Location location = gravestone.getLocation();
 
-        location.getWorld().createExplosion(location, 4.0F, false, false);
+        final World world = location.getWorld();
+        if (world == null) return;
+
+        world.createExplosion(location, 4.0F, false, false);
 
         for (ItemStack item : inventory.getContents()) {
             if (item != null) {
@@ -146,7 +155,7 @@ public class GravestoneManager {
         try {
             gravestonesConfig.save(gravestonesFile);
         } catch (IOException e) {
-            e.printStackTrace();
+            System.out.println("An error occurred while saving gravestones.yml" + e.getMessage());
         }
     }
 
@@ -154,8 +163,9 @@ public class GravestoneManager {
         for (String key : gravestonesConfig.getKeys(false)) {
             UUID uuid = UUID.fromString(key);
             ConfigurationSection section = gravestonesConfig.getConfigurationSection(key);
-            Location location = Location.deserialize(section.getConfigurationSection("location").getValues(false));
-            Inventory inventory = Gravestone.deserializeInventory(section.getConfigurationSection("inventory").getValues(false), 36);
+            assert section != null;
+            Location location = Location.deserialize(Objects.requireNonNull(section.getConfigurationSection("location")).getValues(false));
+            Inventory inventory = Gravestone.deserializeInventory(Objects.requireNonNull(section.getConfigurationSection("inventory")).getValues(false), 36);
             boolean unlocked = section.getBoolean("unlocked");
             long created = section.getLong("created");
 

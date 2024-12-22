@@ -53,14 +53,17 @@ public class Gravestone {
 
                 if (!isUnlocked() && count >= UNLOCKING_COUNTDOWN_SEC) {
                     unlock();
+                    assert player != null;
                     player.sendMessage("§cGravestone unlocked, for everyone to loot!");
                 }
 
                 if (count >= EXPLODING_COUNTDOWN_SEC) {
                     explodeGravestone(plugin);
+                    assert player != null;
                     player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy("§cGravestone exploded!"));
                 }
 
+                assert player != null;
                 player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacy("§cGravestone will explode in " + (EXPLODING_COUNTDOWN_SEC - count) + " seconds."));
             }
         }.runTaskTimer(plugin, 0L, 20L);
@@ -131,9 +134,5 @@ public class Gravestone {
 
     public void setLooting(boolean b) {
         this.looting = b;
-    }
-
-    public boolean isLooting() {
-        return looting;
     }
 }
