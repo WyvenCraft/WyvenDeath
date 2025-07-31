@@ -15,7 +15,10 @@ import org.bukkit.util.Vector;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+import java.util.UUID;
 
 public class GravestoneManager {
     private final WyvenDeath plugin;
@@ -70,7 +73,7 @@ public class GravestoneManager {
     public void respawnPlayer(Player player, Location deathLocation) {
         int minRadius = 20;
         int maxRadius = 25;
-        Location respawnLocation = player.getBedSpawnLocation();
+        Location respawnLocation = player.getRespawnLocation();
 
         if (respawnLocation != null && respawnLocation.distance(deathLocation) <= maxRadius) {
             player.teleport(respawnLocation);
@@ -118,14 +121,20 @@ public class GravestoneManager {
         Inventory inventory = gravestone.getInventory();
         Location location = gravestone.getLocation();
 
-        location.getWorld().createExplosion(location, 4.0F, false, false);
-
-        for (ItemStack item : inventory.getContents()) {
-            if (item != null) {
-                location.getWorld().dropItemNaturally(location, item);
-            }
+        if (location == null || location.getWorld() == null) {
+            return; // Invalid location, cannot explode
         }
 
+        if (location.getWorld() != null) {
+            location.getWorld().createExplosion(location, 4.0F, false, false);
+
+            for (ItemStack item : inventory.getContents()) {
+                if (item != null) {
+                    location.getWorld().dropItemNaturally(location, item);
+                }
+            }
+        }
+        
         Block block = location.getBlock();
         if (block.getType() == Material.STONE) {
             block.setType(Material.AIR);

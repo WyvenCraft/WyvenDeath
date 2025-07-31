@@ -2,15 +2,20 @@ package com.wyvencraft.death;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
+
+import java.util.ArrayList;
+import java.util.Objects;
 
 public class DeathListener implements Listener {
     private final WyvenDeath plugin;
@@ -24,12 +29,18 @@ public class DeathListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerDeath(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) return;
-
         if (player.getHealth() - event.getFinalDamage() > 0) return;
+        if (player.hasMetadata("respawning")) return;
 
         event.setCancelled(true);
 
         Location deathLocation = player.getLocation().getBlock().getLocation();
+
+        if (deathLocation.getWorld() != null && deathLocation.getBlockY() < deathLocation.getWorld().getMinHeight()) {
+            deathLocation.setY(deathLocation.getWorld().getMinHeight() + 1); // Prevent negative Y coordinates
+        } else if (deathLocation.getWorld() != null && deathLocation.getBlockY() > deathLocation.getWorld().getMaxHeight()) {
+            deathLocation.setY(deathLocation.getWorld().getMaxHeight() - 1); // Prevent exceeding max height
+        }
 
         if (!player.getInventory().isEmpty()) {
             Inventory gravestoneInventory = Bukkit.createInventory(null, 27, "Gravestone");
@@ -48,12 +59,22 @@ public class DeathListener implements Listener {
             gravestoneManager.createGravestone(player.getUniqueId(), deathLocation, gravestoneInventory, System.currentTimeMillis());
         }
 
+        double maxHealth = Objects.requireNonNull(player.getAttribute(Attribute.MAX_HEALTH)).getValue();
         // Set player metadata
-        player.setHealth(player.getMaxHealth());
+        player.setHealth(maxHealth);
         player.setFoodLevel(20);
         player.setSaturation(20);
 
         gravestoneManager.spectator(player, true);
+
+        PlayerDeathEvent deathEvent = new PlayerDeathEvent(
+                player,
+                event.getDamageSource(),
+                new ArrayList<>(),
+                player.getTotalExperience(),
+                player.getName() + " has died!"
+        );
+        Bukkit.getPluginManager().callEvent(deathEvent);
 
 //        Send a message to the player with coordinates of the gravestone
         player.sendMessage("You died at " + deathLocation.getBlockX() + ", " + deathLocation.getBlockY() + ", " + deathLocation.getBlockZ());

@@ -1,7 +1,7 @@
 name: WyvenDeath
 main: com.wyvencraft.death.WyvenDeath
 description: A custom death experience plugin.
-version: 1.0
+version: "${project.version}"
 author: WyvenCraft
 api-version: 1.21
 load: POSTWORLD
