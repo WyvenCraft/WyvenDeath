@@ -21,13 +21,13 @@ import java.util.Random;
 import java.util.UUID;
 
 public class GravestoneManager {
-    private final WyvenDeath plugin;
+    private final WyvenDeathPlugin plugin;
     private final Map<Location, Gravestone> gravestones;
 
     private final File gravestonesFile;
     private final FileConfiguration gravestonesConfig;
 
-    public GravestoneManager(WyvenDeath plugin) {
+    public GravestoneManager(WyvenDeathPlugin plugin) {
         this.plugin = plugin;
         this.gravestones = new HashMap<>();
 

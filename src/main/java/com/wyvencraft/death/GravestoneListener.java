@@ -1,6 +1,5 @@
 package com.wyvencraft.death;
 
-import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -14,10 +13,10 @@ import org.bukkit.inventory.ItemStack;
 
 public class GravestoneListener implements Listener {
 
-    private final WyvenDeath plugin;
+    private final WyvenDeathPlugin plugin;
     private final GravestoneManager gravestoneManager;
 
-    public GravestoneListener(WyvenDeath plugin, GravestoneManager gravestoneManager) {
+    public GravestoneListener(WyvenDeathPlugin plugin, GravestoneManager gravestoneManager) {
         this.plugin = plugin;
         this.gravestoneManager = gravestoneManager;
     }

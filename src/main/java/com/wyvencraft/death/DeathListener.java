@@ -1,5 +1,6 @@
 package com.wyvencraft.death;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.attribute.Attribute;
@@ -18,10 +19,10 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 public class DeathListener implements Listener {
-    private final WyvenDeath plugin;
+    private final WyvenDeathPlugin plugin;
     private final GravestoneManager gravestoneManager;
 
-    public DeathListener(WyvenDeath plugin, GravestoneManager gravestoneManager) {
+    public DeathListener(WyvenDeathPlugin plugin, GravestoneManager gravestoneManager) {
         this.plugin = plugin;
         this.gravestoneManager = gravestoneManager;
     }
@@ -72,7 +73,8 @@ public class DeathListener implements Listener {
                 event.getDamageSource(),
                 new ArrayList<>(),
                 player.getTotalExperience(),
-                player.getName() + " has died!"
+                Component.text(player.getName() + " has died!"),
+                true
         );
         Bukkit.getPluginManager().callEvent(deathEvent);
 

@@ -39,7 +39,7 @@ public class Gravestone {
         this.looting = false;
     }
 
-    public void startTask(WyvenDeath plugin) {
+    public void startTask(WyvenDeathPlugin plugin) {
         Player player = Bukkit.getPlayer(owner);
 
         task = new BukkitRunnable() {
@@ -73,7 +73,7 @@ public class Gravestone {
         }
     }
 
-    private void explodeGravestone(WyvenDeath plugin) {
+    private void explodeGravestone(WyvenDeathPlugin plugin) {
         GravestoneManager gravestoneManager = plugin.getGravestoneManager();
         gravestoneManager.explodeGravestone(this);
         cancelTasks();

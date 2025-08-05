@@ -5,7 +5,7 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-public class WyvenDeath extends JavaPlugin {
+public class WyvenDeathPlugin extends JavaPlugin {
     private final GravestoneManager gravestoneManager = new GravestoneManager(this);
 
     @Override
